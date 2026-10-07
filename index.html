@@ -43,7 +43,7 @@
 }
 html{scroll-padding-top:env(safe-area-inset-top,0px);height:100%}
 *,*::before,*::after{box-sizing:border-box}
-body{margin:0;-webkit-tap-highlight-color:transparent;overscroll-behavior-y:none;background:var(--bg);color:var(--ink);font-family:var(--font);font-size:16px;line-height:1.45;-webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums}
+body{margin:0;-webkit-tap-highlight-color:transparent;overscroll-behavior-y:none;background:var(--bg);color:var(--ink);font-family:var(--font);font-size:16px;line-height:1.45;-webkit-font-smoothing:antialiased}
 button,input,textarea,select{font:inherit;color:inherit}
 button{cursor:pointer;border:0;background:none;padding:0}
 :focus-visible{outline:2px solid var(--focus);outline-offset:2px;border-radius:6px}
@@ -168,6 +168,11 @@ tr.click{cursor:pointer} tr.click:hover td{background:var(--surface-2)}
 .two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .err{color:var(--neg);font-size:.85rem;margin:-6px 0 12px;min-height:1px}
 .actions{display:flex;gap:10px;margin-top:6px}
+.atrow{display:flex;gap:8px;margin-bottom:8px}
+.atrow .inp{flex:1;min-width:0}
+.atrow .btn{flex:0 0 auto;padding:0 12px}
+.check{display:flex;gap:10px;align-items:flex-start;font-size:.9rem;margin-bottom:14px}
+.check input{width:20px;height:20px;margin:1px 0 0;accent-color:var(--accent);flex:0 0 auto}
 .actions .btn{flex:1}
 .toast{position:fixed;left:50%;bottom:calc(150px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:50;background:var(--ink);color:var(--bg);border-radius:12px;padding:10px 12px 10px 16px;display:flex;align-items:center;gap:14px;font-size:.9rem;box-shadow:0 8px 24px rgba(0,0,0,.25);max-width:calc(100% - 32px)}
 .toast button{color:var(--bg);font-weight:700;text-decoration:underline;padding:4px}
@@ -254,6 +259,8 @@ try{
   if(raw){ var p = JSON.parse(raw); if(p && p.months) S = p; }
 }catch(e){}
 
+var ATALHOS_PADRAO = ["Salário 1","Salário 2","Extras"];
+function getAtalhos(){ return Array.isArray(S.atalhos) ? S.atalhos : ATALHOS_PADRAO.slice(); }
 function key(y,m){ return y+"-"+String(m+1).padStart(2,"0"); }
 function curKey(){ return key(ui.year,ui.month); }
 function normalize(d){
@@ -406,17 +413,18 @@ function rowGasto(g){
 
 function viewEntradas(){
   var k=curKey(), m=getMonth(k), r=calc(m);
-  var quick = ["Salário 1","Salário 2","Extras"].filter(function(n){ return !m.entradas.some(function(e){return e.nome===n;}); });
-  var q = quick.length ? '<div class="quick">'+quick.map(function(n){ return '<button class="chip" data-act="newEntrada" data-n="'+n+'">+ '+n+'</button>'; }).join("")+'</div>' : '';
+  var quick = getAtalhos().filter(function(n){ return !m.entradas.some(function(e){return e.nome===n;}); });
+  var q = quick.length ? '<div class="quick">'+quick.map(function(n){ return '<button class="chip" data-act="newEntrada" data-n="'+esc(n)+'">+ '+esc(n)+'</button>'; }).join("")+'</div>' : '';
+  var ed = '<div class="quick"><button class="chip" data-act="editAtalhos">Editar nomes das entradas</button></div>';
   if(!m.entradas.length){
     var pk=prevKey(), pm=getMonth(pk.k);
-    return '<div class="empty"><p>Nenhuma entrada em '+MESES[ui.month].toLowerCase()+'. Comece pelos salários e extras.</p>'+q+
-      (pm.entradas.length?'<div class="stack"><button class="btn sec2" data-act="copyEntradas">Copiar entradas de '+esc(pk.name.toLowerCase())+'</button></div>':'')+'</div>';
+    return '<div class="empty"><p>Nenhuma entrada em '+MESES[ui.month].toLowerCase()+'. Toque num nome para registrar o valor.</p>'+q+
+      (pm.entradas.length?'<div class="stack"><button class="btn sec2" data-act="copyEntradas">Copiar entradas de '+esc(pk.name.toLowerCase())+'</button></div>':'')+'</div><div style="margin-top:14px">'+ed+'</div>';
   }
   return '<p class="sub">Total de '+brl(r.entradas)+'</p><div class="list">'+m.entradas.map(function(e,i){
     return '<button class="row" data-act="editEntrada" data-id="'+e.id+'"><span class="ic" style="background:'+ENT_COLORS[i%ENT_COLORS.length]+'">'+esc((e.nome||"?").charAt(0))+'</span>'+
       '<span class="tx"><span class="t" style="display:block">'+esc(e.nome)+'</span></span><span><span class="v" style="display:block">'+brl(e.valor)+'</span><span class="pc" style="display:block">'+pct(e.valor,r.entradas)+'</span></span></button>';
-  }).join("")+'</div>'+(q?'<div style="margin-top:14px">'+q+'</div>':'');
+  }).join("")+'</div><div style="margin-top:14px">'+q+ed+'</div>';
 }
 
 function viewResumo(){
@@ -528,6 +536,50 @@ function entradaSheet(e,nome){
     {type:"entrada", id:e.id||null}
   );
 }
+function atalhosSheet(rows){
+  rows = rows || getAtalhos().map(function(n){ return {orig:n, v:n}; });
+  var h='<h2 id="sheetTitle">Nomes das entradas</h2><p class="sub">São os atalhos que aparecem na aba Entradas. Renomeie, apague ou crie novos, como o nome de cada fonte de renda.</p>';
+  h+=rows.map(function(rw,i){
+    return '<div class="atrow"><input class="inp" data-i="'+i+'" value="'+esc(rw.v)+'" placeholder="Nome da entrada" aria-label="Nome da entrada '+(i+1)+'">'+
+      '<button class="btn danger" data-act="atDel" data-i="'+i+'" aria-label="Apagar '+esc(rw.v||"este nome")+'">Apagar</button></div>';
+  }).join("");
+  h+='<button class="btn sec2 wide" data-act="atAdd" style="margin:4px 0 16px">Adicionar nome</button>';
+  var anyOrig = rows.some(function(rw){ return rw.orig; });
+  if(anyOrig) h+='<label class="check"><input type="checkbox" id="atRename" checked> Renomear também as entradas já registradas com o nome antigo</label>';
+  h+='<div class="err" id="fErr"></div><div class="actions"><button class="btn sec2" data-act="close">Cancelar</button><button class="btn" data-act="atSave">Salvar nomes</button></div>';
+  var keepRename = sheetState && sheetState.type==="atalhos" ? sheetState.rename : true;
+  if(sheetState && sheetState.type==="atalhos"){
+    var sh=document.getElementById("sheet"); sh.innerHTML='<div class="grab"></div>'+h; sheetState.rows=rows;
+    var cb=document.getElementById("atRename"); if(cb) cb.checked=keepRename;
+  } else openSheet(h,{type:"atalhos",rows:rows,rename:true});
+}
+function atRead(){
+  var rows=sheetState.rows;
+  document.querySelectorAll("#sheet .atrow input").forEach(function(inp){ rows[+inp.dataset.i].v=inp.value; });
+  var cb=document.getElementById("atRename"); if(cb) sheetState.rename=cb.checked;
+  return rows;
+}
+function atSave(){
+  var rows=atRead(), seen={}, out=[];
+  for(var i=0;i<rows.length;i++){
+    var v=rows[i].v.trim(); if(!v) continue;
+    if(seen[v.toLowerCase()]){ showErr('O nome "'+v+'" aparece duas vezes. Use nomes diferentes.'); return; }
+    seen[v.toLowerCase()]=true; out.push(v);
+  }
+  var renamed=0;
+  if(sheetState.rename){
+    rows.forEach(function(rw){
+      var v=rw.v.trim();
+      if(!rw.orig || !v || v===rw.orig) return;
+      Object.keys(S.months).forEach(function(k){
+        normalize(S.months[k]).entradas.forEach(function(e){ if(e.nome===rw.orig){ e.nome=v; renamed++; } });
+      });
+    });
+  }
+  S.atalhos=out;
+  closeSheet(); saveLocal(); render();
+  toast(renamed ? "Nomes salvos e "+renamed+(renamed===1?" entrada renomeada":" entradas renomeadas") : "Nomes salvos");
+}
 function showErr(msg,focusId){ var el=document.getElementById("fErr"); el.textContent=msg; if(focusId) document.getElementById(focusId).focus(); }
 
 function saveGasto(){
@@ -592,7 +644,7 @@ function saveFile(name,content,type){
 }
 function backup(){
   var d=new Date(), stamp=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
-  saveFile("backup_gastos_"+stamp+".json", JSON.stringify({app:"controle-gastos",versao:1,salvoEm:d.toISOString(),months:S.months},null,1), "application/json");
+  saveFile("backup_gastos_"+stamp+".json", JSON.stringify({app:"controle-gastos",versao:1,salvoEm:d.toISOString(),atalhos:getAtalhos(),months:S.months},null,1), "application/json");
   try{ localStorage.setItem(LS_KEY+":ultimoBackup", d.toISOString()); }catch(e){}
   render();
 }
@@ -605,6 +657,7 @@ function restore(file){
       var n=Object.keys(p.months).length;
       if(!confirm("Restaurar este backup? Os "+n+" meses do arquivo substituem os meses com a mesma data neste aparelho.")) return;
       Object.keys(p.months).forEach(function(k){ if(/^\d{4}-\d{2}$/.test(k)) S.months[k]=normalize(p.months[k]); });
+      if(Array.isArray(p.atalhos)) S.atalhos=p.atalhos.filter(function(x){ return typeof x==="string" && x.trim(); });
       saveLocal(); render(); toast("Backup restaurado");
     }catch(e){ toast("Esse arquivo não é um backup deste app."); }
   };
@@ -648,12 +701,16 @@ document.addEventListener("click",function(ev){
     case "backup": backup(); break;
     case "restore": document.getElementById("restoreInput").click(); break;
     case "close": closeSheet(); break;
+    case "editAtalhos": atalhosSheet(); break;
+    case "atAdd": var rw=atRead(); rw.push({orig:null,v:""}); atalhosSheet(rw); var ins=document.querySelectorAll("#sheet .atrow input"); ins[ins.length-1].focus(); break;
+    case "atDel": var rd=atRead(); rd.splice(+t.dataset.i,1); atalhosSheet(rd); break;
+    case "atSave": atSave(); break;
   }
 });
 document.addEventListener("keydown",function(ev){
   if(!sheetState) return;
   if(ev.key==="Escape") closeSheet();
-  if(ev.key==="Enter" && ev.target.tagName==="INPUT"){ ev.preventDefault(); sheetState.type==="gasto"?saveGasto():saveEntrada(); }
+  if(ev.key==="Enter" && ev.target.tagName==="INPUT"){ ev.preventDefault(); sheetState.type==="gasto"?saveGasto():sheetState.type==="entrada"?saveEntrada():atSave(); }
 });
 
 document.addEventListener("change",function(ev){
