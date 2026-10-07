@@ -1,5 +1,5 @@
 // Ao mudar qualquer arquivo do app, aumente a versão para os celulares baixarem a atualização.
-const VERSION = "gastos-v4";
+const VERSION = "gastos-v5";
 const FILES = [
   "./", "index.html", "manifest.webmanifest",
   "fonts/sg-400.woff2", "fonts/sg-600.woff2", "fonts/sg-700.woff2", "fonts/sg-800.woff2",
