@@ -1,0 +1,13 @@
+Controle de gastos — app instalável (PWA)
+
+Conteúdo: index.html (o app), manifest.webmanifest (nome e ícone),
+sw.js (faz o app abrir sem internet), fonts/ e icons/.
+
+Para funcionar como app, estes arquivos precisam estar num endereço https
+(por exemplo, GitHub Pages). Abrir o index.html direto do celular não instala.
+
+Os dados ficam guardados no próprio celular. Use "Fazer backup" na aba Ano
+de tempos em tempos e guarde o arquivo no Drive ou no e-mail.
+
+Atualizando o app: ao trocar o index.html, mude a linha
+const VERSION = "gastos-v1" no sw.js (por exemplo para "gastos-v2").
